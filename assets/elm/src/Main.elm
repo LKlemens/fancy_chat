@@ -73,7 +73,7 @@ update msg model =
             ( initialModel, Cmd.none )
 
         BroadcastCustom name ->
-            ( { model | name = name }, Cmd.none )
+            ( { model | name = name }, sendMessage name )
 
 
 
