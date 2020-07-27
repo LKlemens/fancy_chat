@@ -29,7 +29,7 @@ main =
 port sendMessage : String -> Cmd msg
 
 
-port messageReceiver : (String -> msg) -> Sub msg
+port messageReceiver : (Encode.Value -> msg) -> Sub msg
 
 
 
@@ -64,6 +64,11 @@ init _ =
 type Msg
     = Init
     | BroadcastCustom String
+    | ReceiveMsg Encode.Value
+
+
+stringDecoder =
+    Decode.field "name" Decode.string
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -75,6 +80,15 @@ update msg model =
         BroadcastCustom name ->
             ( { model | name = name }, sendMessage name )
 
+        ReceiveMsg jsonName ->
+            case Decode.decodeValue stringDecoder jsonName of
+                Ok name ->
+                    ( { model | name = name }, Cmd.none )
+
+                Err message ->
+                    Debug.log ("Error receiving name " ++ Debug.toString message)
+                        ( model, Cmd.none )
+
 
 
 -- SUBSCRIPTION
@@ -82,7 +96,7 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    messageReceiver ReceiveMsg
 
 
 
