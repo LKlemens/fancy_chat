@@ -47,4 +47,13 @@ if (elmContainer) {
     channel.push("broadcast_custom", { name: name });
     // Later, we'll push the score data to the Phoenix channel
   });
+
+  channel.on("broadcast_custom", (payload) => {
+    console.log(
+      `Receiving ${payload.name} score data from Phoenix using the ReceiveMsg port.`
+    );
+    app.ports.messageReceiver.send({
+      name: "from phoenix name: " + `${payload.name} :)`,
+    });
+  });
 }
