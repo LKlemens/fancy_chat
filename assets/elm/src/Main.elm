@@ -8,7 +8,7 @@ import Html.Events as Events
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Url
-import Url.Parser exposing ((</>), Parser, int, map, oneOf, s, string)
+import Url.Parser exposing ((</>), Parser, parse)
 
 
 
@@ -35,6 +35,9 @@ main =
 port sendMessage : String -> Cmd msg
 
 
+port sendName : String -> Cmd msg
+
+
 port messageReceiver : (Encode.Value -> msg) -> Sub msg
 
 
@@ -44,11 +47,12 @@ port messageReceiver : (Encode.Value -> msg) -> Sub msg
 
 type Route
     = Name String
+    | NotFound
 
 
 routeParser : Parser (String -> a) a
 routeParser =
-    s "" </> string
+    Url.Parser.string
 
 
 type alias Model =
@@ -61,14 +65,14 @@ type alias Model =
     }
 
 
-initialCommand : Cmd Msg
-initialCommand =
-    Cmd.none
+initialCommand : String -> Cmd Msg
+initialCommand name =
+    sendName name
 
 
 initialModel : Url.Url -> Nav.Key -> Model
 initialModel url key =
-    { name = ""
+    { name = toRoute url
     , username = ""
     , msg = ""
     , msgs = []
@@ -79,7 +83,7 @@ initialModel url key =
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
-    ( initialModel url key, initialCommand )
+    ( initialModel url key, initialCommand (toRoute url) )
 
 
 
@@ -104,10 +108,6 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Init ->
-            let
-                name =
-                    routeParser
-            in
             ( model, Cmd.none )
 
         BroadcastCustom message ->
@@ -138,6 +138,15 @@ update msg model =
 
         UrlChanged url ->
             ( { model | url = url }, Cmd.none )
+
+
+toRoute : Url.Url -> String
+toRoute url =
+    let
+        _ =
+            Debug.log "toroute log "
+    in
+    Maybe.withDefault "" (parse routeParser url)
 
 
 

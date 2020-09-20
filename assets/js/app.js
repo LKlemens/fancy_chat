@@ -29,7 +29,14 @@ const elmContainer = document.querySelector("#elm-container");
 
 if (elmContainer) {
   let app = Elm.Main.init({ node: elmContainer });
-  let channel = socket.channel("room:chat", {});
+
+  app.ports.sendName.subscribe((msg) => {
+    var name = msg;
+  });
+
+  console.log(`kleeeeeeeeeeeeeeeememen ${name}`);
+
+  let channel = socket.channel("room:chat", { name: name });
 
   channel
     .join()
