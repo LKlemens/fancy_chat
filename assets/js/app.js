@@ -40,11 +40,11 @@ if (elmContainer) {
       console.log("Unable to join", resp);
     });
 
-  app.ports.sendMessage.subscribe(function (name) {
+  app.ports.sendMessage.subscribe(function (msg) {
     console.log(
-      `Broadcasting ${name} score data from Elm using the sendMessage port.`
+      `Broadcasting ${msg} score data from Elm using the sendMessage port.`
     );
-    channel.push("broadcast_custom", { name: name });
+    channel.push("broadcast_custom", { msg: msg });
     // Later, we'll push the score data to the Phoenix channel
   });
 

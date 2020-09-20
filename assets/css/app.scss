@@ -1,5 +1,7 @@
 /* This file is for your main application css. */
+@charset "utf-8";
 @import "./phoenix.css";
+@import "~bulma/bulma";
 
 /* Alerts and form errors */
 .alert {
