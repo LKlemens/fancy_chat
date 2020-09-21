@@ -14,7 +14,10 @@ defmodule FancyChat.Application do
       # Start the PubSub system
       {Phoenix.PubSub, name: FancyChat.PubSub},
       # Start the Endpoint (http/https)
-      FancyChatWeb.Endpoint
+      FancyChatWeb.Endpoint,
+      {Registry, keys: :unique, name: Registry.Users},
+      FancyChat.Users.Supervisor
+
       # Start a worker by calling: FancyChat.Worker.start_link(arg)
       # {FancyChat.Worker, arg}
     ]
