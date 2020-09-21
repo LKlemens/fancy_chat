@@ -18,6 +18,8 @@ import "phoenix_html";
 
 import { Elm } from "../elm/src/Main.elm";
 
+let sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms * 1000));
+
 let socketParams = window.userToken == "" ? {} : { token: window.userToken };
 let socket = new Socket("/socket", {
   params: socketParams,
@@ -28,13 +30,8 @@ socket.connect();
 const elmContainer = document.querySelector("#elm-container");
 
 if (elmContainer) {
-  let app = Elm.Main.init({ node: elmContainer });
-
-  app.ports.sendName.subscribe((msg) => {
-    var name = msg;
-  });
-
-  console.log(`kleeeeeeeeeeeeeeeememen ${name}`);
+  let name = window.location.pathname.replace(/^\//, "");
+  let app = Elm.Main.init({ node: elmContainer, flags: name });
 
   let channel = socket.channel("room:chat", { name: name });
 
@@ -57,10 +54,10 @@ if (elmContainer) {
 
   channel.on("broadcast_custom", (payload) => {
     console.log(
-      `Receiving ${payload.name} score data from Phoenix using the ReceiveMsg port.`
+      `Receiving ${payload.name} score data  and name ${payload.name} from Phoenix using the ReceiveMsg port.`
     );
     app.ports.messageReceiver.send({
-      name: "from phoenix name: " + `${payload.name} :)`,
+      msg: `${payload.name}: ${payload.msg}`,
     });
   });
 }

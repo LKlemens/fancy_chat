@@ -16,7 +16,7 @@ import Url.Parser exposing ((</>), Parser, parse)
 -- main : Html
 
 
-main : Program () Model Msg
+main : Program String Model Msg
 main =
     Browser.application
         { init = init
@@ -33,9 +33,6 @@ main =
 
 
 port sendMessage : String -> Cmd msg
-
-
-port sendName : String -> Cmd msg
 
 
 port messageReceiver : (Encode.Value -> msg) -> Sub msg
@@ -65,14 +62,14 @@ type alias Model =
     }
 
 
-initialCommand : String -> Cmd Msg
-initialCommand name =
-    sendName name
+initialCommand : Cmd Msg
+initialCommand =
+    Cmd.none
 
 
-initialModel : Url.Url -> Nav.Key -> Model
-initialModel url key =
-    { name = toRoute url
+initialModel : String -> Url.Url -> Nav.Key -> Model
+initialModel name url key =
+    { name = name
     , username = ""
     , msg = ""
     , msgs = []
@@ -81,9 +78,9 @@ initialModel url key =
     }
 
 
-init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
-init flags url key =
-    ( initialModel url key, initialCommand (toRoute url) )
+init : String -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
+init name url key =
+    ( initialModel name url key, initialCommand )
 
 
 
@@ -101,7 +98,7 @@ type Msg
 
 
 stringDecoder =
-    Decode.field "name" Decode.string
+    Decode.field "msg" Decode.string
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -111,7 +108,7 @@ update msg model =
             ( model, Cmd.none )
 
         BroadcastCustom message ->
-            ( { model | msgs = model.msgs ++ [ message ] }, sendMessage message )
+            ( model, sendMessage message )
 
         HandleMsg message ->
             ( { model | msg = message }, Cmd.none )
@@ -121,8 +118,8 @@ update msg model =
 
         ReceiveMsg jsonName ->
             case Decode.decodeValue stringDecoder jsonName of
-                Ok name ->
-                    ( { model | name = name }, Cmd.none )
+                Ok user_message ->
+                    ( { model | msgs = model.msgs ++ [ user_message ] }, Cmd.none )
 
                 Err message ->
                     Debug.log ("Error receiving name " ++ Debug.toString message)
@@ -140,12 +137,8 @@ update msg model =
             ( { model | url = url }, Cmd.none )
 
 
-toRoute : Url.Url -> String
-toRoute url =
-    let
-        _ =
-            Debug.log "toroute log "
-    in
+getName : Url.Url -> String
+getName url =
     Maybe.withDefault "" (parse routeParser url)
 
 
@@ -168,7 +161,7 @@ view model =
     , body =
         [ div []
             [ form []
-                [ viewMsgs model.msgs
+                [ viewMsgs model.msgs model.name
                 , viewInput "input" "write msg" model.msg HandleMsg
                 , sendButton model
                 ]
@@ -177,8 +170,8 @@ view model =
     }
 
 
-viewMsgs : List String -> Html msg
-viewMsgs list =
+viewMsgs : List String -> String -> Html msg
+viewMsgs list name =
     ul [] (List.map (\m -> li [] [ text m ]) list)
 
 
