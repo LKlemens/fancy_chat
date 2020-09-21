@@ -108,7 +108,7 @@ update msg model =
             ( model, Cmd.none )
 
         BroadcastCustom message ->
-            ( model, sendMessage message )
+            ( { model | msg = "" }, sendMessage message )
 
         HandleMsg message ->
             ( { model | msg = message }, Cmd.none )
@@ -160,7 +160,7 @@ view model =
     { title = "url"
     , body =
         [ div []
-            [ form []
+            [ form [ Events.onSubmit (BroadcastCustom model.msg) ]
                 [ viewMsgs model.msgs model.name
                 , viewInput "input" "write msg" model.msg HandleMsg
                 , sendButton model
