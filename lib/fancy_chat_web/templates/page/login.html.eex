@@ -1,1 +1,9 @@
+<div id="allusers" data-users="<%= Jason.encode!(@names) %>" >
+<script>
+  window.userToken = "<%= assigns[:id] %>";
+
+  const element = document.getElementById("allusers")
+  const {users} = element.dataset
+  all_users = JSON.parse(users)
+</script>
 <div id="elm-container"></div>

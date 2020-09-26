@@ -2,11 +2,12 @@ port module Main exposing (main)
 
 import Browser
 import Browser.Navigation as Nav
-import Html exposing (Html, button, div, form, input, li, text, ul)
-import Html.Attributes exposing (placeholder, type_, value)
+import Html exposing (Html, a, button, div, form, input, li, p, text, ul)
+import Html.Attributes exposing (class, placeholder, type_, value)
 import Html.Events as Events
 import Json.Decode as Decode
 import Json.Encode as Encode
+import Set exposing (Set)
 import Url
 import Url.Parser exposing ((</>), Parser, parse)
 
@@ -16,7 +17,19 @@ import Url.Parser exposing ((</>), Parser, parse)
 -- main : Html
 
 
-main : Program String Model Msg
+type alias InitValues =
+    { name : String
+    , users : List String
+    }
+
+
+options =
+    { stopPropagation = True
+    , preventDefault = True
+    }
+
+
+main : Program InitValues Model Msg
 main =
     Browser.application
         { init = init
@@ -35,7 +48,16 @@ main =
 port sendMessage : String -> Cmd msg
 
 
+port comeOnline : String -> Cmd msg
+
+
+port newOnlineUser : (Encode.Value -> msg) -> Sub msg
+
+
 port messageReceiver : (Encode.Value -> msg) -> Sub msg
+
+
+port receiveUsers : (Encode.Value -> msg) -> Sub msg
 
 
 
@@ -55,32 +77,36 @@ routeParser =
 type alias Model =
     { name : String
     , username : String
+    , friend : String
     , msg : String
     , msgs : List String
     , key : Nav.Key
     , url : Url.Url
+    , usersOnline : Set String
     }
 
 
-initialCommand : Cmd Msg
-initialCommand =
-    Cmd.none
+initialCommand : String -> Cmd Msg
+initialCommand name =
+    comeOnline name
 
 
-initialModel : String -> Url.Url -> Nav.Key -> Model
-initialModel name url key =
-    { name = name
+initialModel : InitValues -> Url.Url -> Nav.Key -> Model
+initialModel initValues url key =
+    { name = initValues.name
     , username = ""
+    , friend = ""
     , msg = ""
     , msgs = []
     , key = key
     , url = url
+    , usersOnline = Set.fromList initValues.users
     }
 
 
-init : String -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
-init name url key =
-    ( initialModel name url key, initialCommand )
+init : InitValues -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
+init values url key =
+    ( initialModel values url key, initialCommand values.name )
 
 
 
@@ -91,14 +117,21 @@ type Msg
     = Init
     | BroadcastCustom String
     | ReceiveMsg Encode.Value
+    | OnlineUsers Encode.Value
+    | NewOnlineUser Encode.Value
     | HandleLogin String
     | HandleMsg String
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
+    | UpdateFriend String
 
 
-stringDecoder =
-    Decode.field "msg" Decode.string
+stringDecoder name =
+    Decode.field name Decode.string
+
+
+usersDecoder =
+    Decode.field "users" (Decode.list Decode.string)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -117,12 +150,36 @@ update msg model =
             ( { model | username = username }, Cmd.none )
 
         ReceiveMsg jsonName ->
-            case Decode.decodeValue stringDecoder jsonName of
+            case Decode.decodeValue (stringDecoder "msg") jsonName of
                 Ok user_message ->
                     ( { model | msgs = model.msgs ++ [ user_message ] }, Cmd.none )
 
                 Err message ->
                     Debug.log ("Error receiving name " ++ Debug.toString message)
+                        ( model, Cmd.none )
+
+        OnlineUsers jsonUsers ->
+            case Decode.decodeValue usersDecoder jsonUsers of
+                Ok usersOnline ->
+                    Debug.log ("userssssss" ++ Debug.toString usersOnline)
+                        ( { model | usersOnline = Set.fromList usersOnline }, Cmd.none )
+
+                Err message ->
+                    Debug.log ("Error receiving list of online users  " ++ Debug.toString message)
+                        ( model, Cmd.none )
+
+        NewOnlineUser jsonName ->
+            case Decode.decodeValue (stringDecoder "name") jsonName of
+                Ok user ->
+                    if user /= model.name then
+                        Debug.log ("online usersssss" ++ Debug.toString user)
+                            ( { model | usersOnline = Set.insert user model.usersOnline }, Cmd.none )
+
+                    else
+                        ( model, Cmd.none )
+
+                Err message ->
+                    Debug.log ("Error receiving online user name " ++ Debug.toString message)
                         ( model, Cmd.none )
 
         LinkClicked urlRequest ->
@@ -136,6 +193,9 @@ update msg model =
         UrlChanged url ->
             ( { model | url = url }, Cmd.none )
 
+        UpdateFriend name ->
+            ( { model | friend = name }, Cmd.none )
+
 
 getName : Url.Url -> String
 getName url =
@@ -148,7 +208,11 @@ getName url =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    messageReceiver ReceiveMsg
+    Sub.batch
+        [ messageReceiver ReceiveMsg
+        , receiveUsers OnlineUsers
+        , newOnlineUser NewOnlineUser
+        ]
 
 
 
@@ -160,24 +224,40 @@ view model =
     { title = "url"
     , body =
         [ div []
-            [ form [ Events.onSubmit (BroadcastCustom model.msg) ]
-                [ viewMsgs model.msgs model.name
-                , viewInput "input" "write msg" model.msg HandleMsg
-                , sendButton model
-                ]
+            [ div [] [ text ("Hello " ++ model.name ++ "!\n") ]
+            , text ("Write to " ++ model.friend ++ "!")
+            , viewMsgs model.msgs
+            , viewInput "input" "write msg" model.msg HandleMsg
+            , sendButton model
+            , viewOnlineUsers model.usersOnline
             ]
         ]
     }
 
 
-viewMsgs : List String -> String -> Html msg
-viewMsgs list name =
+viewMsgs : List String -> Html msg
+viewMsgs list =
     ul [] (List.map (\m -> li [] [ text m ]) list)
 
 
 viewInput : String -> String -> String -> (String -> msg) -> Html msg
 viewInput t p v toMsg =
     input [ type_ t, placeholder p, value v, Events.onInput toMsg ] []
+
+
+viewOnlineUsers users =
+    ul []
+        (List.map
+            (\user ->
+                li []
+                    [ p
+                        [ Events.onClick (UpdateFriend user), class "controll", class "button" ]
+                        [ text user
+                        ]
+                    ]
+            )
+            (Set.toList users)
+        )
 
 
 sendButton : Model -> Html Msg
