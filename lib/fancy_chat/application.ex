@@ -16,7 +16,8 @@ defmodule FancyChat.Application do
       # Start the Endpoint (http/https)
       FancyChatWeb.Endpoint,
       {Registry, keys: :unique, name: Registry.Users},
-      FancyChat.Users.Supervisor
+      FancyChat.Users.Supervisor,
+      FancyChat.AllUsers
 
       # Start a worker by calling: FancyChat.Worker.start_link(arg)
       # {FancyChat.Worker, arg}

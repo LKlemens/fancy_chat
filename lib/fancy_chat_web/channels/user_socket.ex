@@ -2,7 +2,7 @@ defmodule FancyChatWeb.UserSocket do
   use Phoenix.Socket
 
   ## Channels
-  channel("room:chat", FancyChatWeb.RoomChannel)
+  channel("room:*", FancyChatWeb.RoomChannel)
 
   # Socket params are passed from the client and can
   # be used to verify and authenticate a user. After
@@ -17,6 +17,7 @@ defmodule FancyChatWeb.UserSocket do
   # performing token verification on connect.
   @impl true
   def connect(_params, socket, _connect_info) do
+    IO.inspect({:user_socket, _params})
     {:ok, socket}
   end
 

@@ -10,13 +10,23 @@ defmodule FancyChat.User do
   @impl GenServer
   def init(_) do
     IO.inspect({self(), "jestem w genserver users init "})
-    {:ok, %{name: ""}}
+    {:ok, %{name: "", id: ""}}
   end
 
   @impl GenServer
-  def handle_cast(%{name: name}, state) do
+  def handle_cast(%{name: name, id: id}, state) do
     IO.inspect({:jaaaaaaaaaaaaaaa})
-    {:noreply, %{state | name: name}}
+    {:noreply, %{state | name: name, id: id}}
+  end
+
+  @impl GenServer
+  def handle_call(:get_id, _from, state) do
+    {:reply, state.id, state}
+  end
+
+  @impl GenServer
+  def handle_call(:get_name, _from, state) do
+    {:reply, state.name, state}
   end
 
   def push(name) do
