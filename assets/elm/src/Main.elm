@@ -30,8 +30,14 @@ type alias ReceivedMsg =
     }
 
 
+type alias UserMessageState =
+    { msgs : List String
+    , viewed : Bool
+    }
+
+
 type alias MsgMap =
-    Dict String (List String)
+    Dict String UserMessageState
 
 
 main : Program InitValues Model Msg
@@ -105,7 +111,7 @@ initialModel initValues url key =
     , username = ""
     , friend = Maybe.withDefault "" (List.head list)
     , msg = ""
-    , msgs = Dict.fromList (List.map (\name -> ( name, [] )) list)
+    , msgs = Dict.fromList (List.map (\name -> ( name, UserMessageState [] True )) list)
     , key = key
     , url = url
     , usersOnline = Set.fromList list
@@ -154,7 +160,7 @@ update msg model =
             ( model, Cmd.none )
 
         SendMsg message ->
-            ( { model | msg = "", msgs = Dict.update model.friend (Maybe.map (\umsg -> umsg ++ [ model.name ++ ": " ++ message ])) model.msgs }, sendMessage (UserMsg model.name model.friend message) )
+            ( { model | msg = "", msgs = Dict.update model.friend (Maybe.map (\{ msgs, viewed } -> UserMessageState (msgs ++ [ model.name ++ ": " ++ message ]) viewed)) model.msgs }, sendMessage (UserMsg model.name model.friend message) )
 
         HandleMsg message ->
             ( { model | msg = message }, Cmd.none )
@@ -169,7 +175,12 @@ update msg model =
                         dict =
                             Dict.update
                                 user_message.sender
-                                (Maybe.map (\umsg -> umsg ++ [ user_message.sender ++ ": " ++ user_message.msg ]))
+                                (Maybe.map
+                                    (\{ msgs, viewed } ->
+                                        UserMessageState (msgs ++ [ user_message.sender ++ ": " ++ user_message.msg ])
+                                            (user_message.sender == model.friend)
+                                    )
+                                )
                                 model.msgs
                     in
                     Debug.log ("jaaaa klemens dict update " ++ Debug.toString dict)
@@ -186,10 +197,10 @@ update msg model =
                 Ok user ->
                     if user /= model.name then
                         if model.friend == "" then
-                            ( { model | usersOnline = Set.insert user model.usersOnline, friend = user, msgs = Dict.insert user [] model.msgs }, Cmd.none )
+                            ( { model | usersOnline = Set.insert user model.usersOnline, friend = user, msgs = Dict.insert user (UserMessageState [] True) model.msgs }, Cmd.none )
 
                         else
-                            ( { model | usersOnline = Set.insert user model.usersOnline, msgs = Dict.insert user [] model.msgs }, Cmd.none )
+                            ( { model | usersOnline = Set.insert user model.usersOnline, msgs = Dict.insert user (UserMessageState [] True) model.msgs }, Cmd.none )
 
                     else
                         ( model, Cmd.none )
@@ -210,7 +221,18 @@ update msg model =
             ( { model | url = url }, Cmd.none )
 
         UpdateFriend name ->
-            ( { model | friend = name }, Cmd.none )
+            let
+                dict =
+                    Dict.update
+                        name
+                        (Maybe.map
+                            (\{ msgs, viewed } ->
+                                UserMessageState msgs True
+                            )
+                        )
+                        model.msgs
+            in
+            ( { model | friend = name, msgs = dict }, Cmd.none )
 
 
 getName : Url.Url -> String
@@ -223,7 +245,7 @@ getName url =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.batch
         [ messageReceiver ReceiveMsg
         , newOnlineUser NewOnlineUser
@@ -247,7 +269,7 @@ view model =
                     , viewMsgs model.msgs model.friend
                     , viewInput "input" "write msg" model.msg HandleMsg
                     , sendButton model
-                    , viewOnlineUsers model.usersOnline
+                    , viewOnlineUsers model.usersOnline model
                     ]
                 ]
             ]
@@ -259,9 +281,9 @@ viewMsgs : MsgMap -> String -> Html msg
 viewMsgs map friend =
     let
         list =
-            Maybe.withDefault [] (Dict.get friend map)
+            Maybe.withDefault (UserMessageState [] True) (Dict.get friend map)
     in
-    ul [] (List.map (\m -> li [] [ text m ]) list)
+    ul [] (List.map (\m -> li [] [ text m ]) list.msgs)
 
 
 viewInput : String -> String -> String -> (String -> msg) -> Html msg
@@ -269,13 +291,25 @@ viewInput t p v toMsg =
     input [ type_ t, placeholder p, value v, Events.onInput toMsg ] []
 
 
-viewOnlineUsers users =
+returnClass user model =
+    let
+        struct =
+            Maybe.withDefault (UserMessageState [] True) (Dict.get user model.msgs)
+    in
+    if Debug.log ("reutnr class " ++ user ++ Debug.toString struct) ((user /= model.friend) && not struct.viewed) then
+        "button is-info"
+
+    else
+        "button"
+
+
+viewOnlineUsers users model =
     ul []
         (List.map
             (\user ->
                 li []
                     [ p
-                        [ Events.onClick (UpdateFriend user), class "controll", class "button" ]
+                        [ Events.onClick (UpdateFriend user), class "controll", class (returnClass user model) ]
                         [ text user
                         ]
                     ]
