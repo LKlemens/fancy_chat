@@ -78,10 +78,8 @@ if (elmContainer) {
 
   channel.on("send_message", (payload) => {
     console.log(
-      `Receiving ${payload.msg} score data  and name ${payload.name} from Phoenix using the ReceiveMsg port.`
+      `Receiving ${payload.sender} score data  and name ${payload.msg} from Phoenix using the ReceiveMsg port.`
     );
-    app.ports.messageReceiver.send({
-      msg: `${payload.msg}`,
-    });
+    app.ports.messageReceiver.send(payload);
   });
 }
