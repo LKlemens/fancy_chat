@@ -67,30 +67,21 @@ if (elmContainer) {
   app.ports.comeOnline.subscribe(function (name) {
     console.log(`Broadcasting name ${name} using comeOnline port.`);
     channel.push("come_online", { name: name });
-    // Later, we'll push the score data to the Phoenix channel
   });
 
   app.ports.sendMessage.subscribe(function (msg) {
     console.log(
-      `Broadcasting ${msg} score data from Elm using the sendMessage port.`
+      `Send msg '${msg}' score data from Elm using the sendMessage port.`
     );
-    channel.push("broadcast_custom", { msg: msg });
-    // Later, we'll push the score data to the Phoenix channel
+    channel.push("send_message", { message: msg });
   });
 
-  // channel.on("online_users", (payload) => {
-  //   console.log(`Users received :DDDDDDDDDDDDDDDDDDDDDDDDDDDD`);
-  //   app.ports.receiveUsers.send({
-  //     users: ["Tom", "Kate"],
-  //   });
-  // });
-
-  channel.on("broadcast_custom", (payload) => {
+  channel.on("send_message", (payload) => {
     console.log(
       `Receiving ${payload.msg} score data  and name ${payload.name} from Phoenix using the ReceiveMsg port.`
     );
     app.ports.messageReceiver.send({
-      msg: `${payload.name}: ${payload.msg}`,
+      msg: `${payload.msg}`,
     });
   });
 }

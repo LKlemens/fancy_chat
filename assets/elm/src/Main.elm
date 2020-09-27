@@ -41,11 +41,18 @@ main =
         }
 
 
+type alias UserMsg =
+    { sender : String
+    , receiver : String
+    , msg : String
+    }
+
+
 
 -- PORTS
 
 
-port sendMessage : String -> Cmd msg
+port sendMessage : UserMsg -> Cmd msg
 
 
 port comeOnline : String -> Cmd msg
@@ -62,11 +69,6 @@ port receiveUsers : (Encode.Value -> msg) -> Sub msg
 
 
 -- MODEL
-
-
-type Route
-    = Name String
-    | NotFound
 
 
 routeParser : Parser (String -> a) a
@@ -93,14 +95,18 @@ initialCommand name =
 
 initialModel : InitValues -> Url.Url -> Nav.Key -> Model
 initialModel initValues url key =
+    let
+        list =
+            List.filter (\name -> name /= initValues.name) initValues.users
+    in
     { name = initValues.name
     , username = ""
-    , friend = ""
+    , friend = Maybe.withDefault "" (List.head list)
     , msg = ""
     , msgs = []
     , key = key
     , url = url
-    , usersOnline = Set.fromList initValues.users
+    , usersOnline = Set.fromList list
     }
 
 
@@ -115,7 +121,7 @@ init values url key =
 
 type Msg
     = Init
-    | BroadcastCustom String
+    | SendMsg String
     | ReceiveMsg Encode.Value
     | OnlineUsers Encode.Value
     | NewOnlineUser Encode.Value
@@ -140,8 +146,8 @@ update msg model =
         Init ->
             ( model, Cmd.none )
 
-        BroadcastCustom message ->
-            ( { model | msg = "" }, sendMessage message )
+        SendMsg message ->
+            ( { model | msg = "" }, sendMessage (UserMsg model.name model.friend message) )
 
         HandleMsg message ->
             ( { model | msg = message }, Cmd.none )
@@ -172,7 +178,10 @@ update msg model =
             case Decode.decodeValue (stringDecoder "name") jsonName of
                 Ok user ->
                     if user /= model.name then
-                        Debug.log ("online usersssss" ++ Debug.toString user)
+                        if model.friend == "" then
+                            ( { model | usersOnline = Set.insert user model.usersOnline, friend = user }, Cmd.none )
+
+                        else
                             ( { model | usersOnline = Set.insert user model.usersOnline }, Cmd.none )
 
                     else
@@ -224,12 +233,17 @@ view model =
     { title = "url"
     , body =
         [ div []
-            [ div [] [ text ("Hello " ++ model.name ++ "!\n") ]
-            , text ("Write to " ++ model.friend ++ "!")
-            , viewMsgs model.msgs
-            , viewInput "input" "write msg" model.msg HandleMsg
-            , sendButton model
-            , viewOnlineUsers model.usersOnline
+            [ form
+                [ Events.onSubmit (SendMsg model.msg) ]
+                [ div []
+                    [ div [] [ text ("Hello " ++ model.name ++ "!\n") ]
+                    , text ("Write to " ++ model.friend ++ "!")
+                    , viewMsgs model.msgs
+                    , viewInput "input" "write msg" model.msg HandleMsg
+                    , sendButton model
+                    , viewOnlineUsers model.usersOnline
+                    ]
+                ]
             ]
         ]
     }
@@ -265,7 +279,7 @@ sendButton model =
     let
         broadcastEvent =
             model.msg
-                |> BroadcastCustom
+                |> SendMsg
                 |> Events.onClick
     in
     button
