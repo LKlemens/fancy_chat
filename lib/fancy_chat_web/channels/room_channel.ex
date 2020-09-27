@@ -25,11 +25,12 @@ defmodule FancyChatWeb.RoomChannel do
     IO.inspect({:jooooooooooooin3, socket})
     id_receiver = GenServer.call(FancyChat.AllUsers, {:get_id, payload["message"]["receiver"]})
     id_sender = GenServer.call(FancyChat.AllUsers, {:get_id, payload["message"]["sender"]})
-    message = "#{payload["message"]["sender"]}: #{payload["message"]["msg"]}"
+    # message = "#{payload["message"]["sender"]}: #{payload["message"]["msg"]}"
+    message = %{sender: payload["message"]["sender"], msg: payload["message"]["msg"]}
 
-    FancyChatWeb.Endpoint.broadcast!("room:#{id_receiver}", "send_message", %{msg: message})
+    FancyChatWeb.Endpoint.broadcast!("room:#{id_receiver}", "send_message", message)
 
-    FancyChatWeb.Endpoint.broadcast!("room:#{id_sender}", "send_message", %{msg: message})
+    FancyChatWeb.Endpoint.broadcast!("room:#{id_sender}", "send_message", message)
 
     {:noreply, socket}
   end
