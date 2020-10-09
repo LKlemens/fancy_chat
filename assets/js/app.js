@@ -47,6 +47,19 @@ function updateLocalStorage(msg) {
   localStorage.setItem("messages", JSON.stringify(messages));
 }
 
+function createChannel(name, params = {}) {
+  let channel = socket.channel(name, params);
+  channel
+    .join()
+    .receive("ok", (resp) => {
+      console.log("Joined successfully", resp);
+    })
+    .receive("error", (resp) => {
+      console.log("Unable to join", resp);
+    });
+  return channel;
+}
+
 if (elmContainer) {
   let name = window.location.pathname.replace(/^\//, "");
   let app = Elm.Main.init({
@@ -58,15 +71,7 @@ if (elmContainer) {
     },
   });
 
-  let general = socket.channel("room:general");
-  general
-    .join()
-    .receive("ok", (resp) => {
-      console.log("Joined successfully", resp);
-    })
-    .receive("error", (resp) => {
-      console.log("Unable to join", resp);
-    });
+  let general = createChannel("room:general");
   general.on("online_users", (payload) => {
     console.log(
       `Receiving  name ${payload.name} from Phoenix using the comeOnline port.`
@@ -76,17 +81,7 @@ if (elmContainer) {
     });
   });
 
-  let channel = socket.channel(`room:${socketParams.token}`, { name: name });
-
-  channel
-    .join()
-    .receive("ok", (resp) => {
-      console.log("Joined successfully", resp);
-    })
-    .receive("error", (resp) => {
-      console.log("Unable to join", resp);
-    });
-
+  let channel = createChannel(`room:${socketParams.token}`, { name: name });
   app.ports.comeOnline.subscribe(function (name) {
     console.log(`Broadcasting name ${name} using comeOnline port.`);
     channel.push("come_online", { name: name });
