@@ -18,7 +18,6 @@ import "phoenix_html";
 
 import { Elm } from "../elm/src/Main.elm";
 
-console.log(`ale superrrr id ${window.userToken}`);
 let socketParams = window.userToken == "" ? {} : { token: window.userToken };
 let socket = new Socket("/socket", {
   params: socketParams,
@@ -28,11 +27,35 @@ socket.connect();
 
 const elmContainer = document.querySelector("#elm-container");
 
+function getItem(name, empty) {
+  let existing = localStorage.getItem(name);
+  let value = existing ? existing : JSON.stringify(empty);
+  return JSON.parse(value);
+}
+
+function updateLocalStorage(msg) {
+  let messages = getItem("messages", []);
+  let user = messages.find((item) => item.friend == msg.receiver);
+  if (user) {
+    user["msgs"].push(msg.sender + ": " + msg.msg);
+  } else {
+    messages.push({
+      friend: msg.receiver,
+      msgs: [msg.sender + ": " + msg.msg],
+    });
+  }
+  localStorage.setItem("messages", JSON.stringify(messages));
+}
+
 if (elmContainer) {
   let name = window.location.pathname.replace(/^\//, "");
   let app = Elm.Main.init({
     node: elmContainer,
-    flags: { name: name, users: all_users },
+    flags: {
+      name: name,
+      users: all_users,
+      users_with_msgs: getItem("messages", []),
+    },
   });
 
   let general = socket.channel("room:general");
@@ -71,8 +94,11 @@ if (elmContainer) {
 
   app.ports.sendMessage.subscribe(function (msg) {
     console.log(
-      `Send msg '${msg}' score data from Elm using the sendMessage port.`
+      `Send msg data '${JSON.stringify(
+        msg
+      )}' score data from Elm using the sendMessage port.`
     );
+    updateLocalStorage(msg);
     channel.push("send_message", { message: msg });
   });
 
@@ -80,6 +106,8 @@ if (elmContainer) {
     console.log(
       `Receiving ${payload.sender} score data  and name ${payload.msg} from Phoenix using the ReceiveMsg port.`
     );
+    payload.receiver = payload.sender;
+    updateLocalStorage(payload);
     app.ports.messageReceiver.send(payload);
   });
 }

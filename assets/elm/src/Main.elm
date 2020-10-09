@@ -3,14 +3,13 @@ port module Main exposing (main)
 import Browser
 import Browser.Navigation as Nav
 import Dict exposing (Dict)
-import Html exposing (Html, a, button, div, form, input, li, p, text, ul)
+import Html exposing (Html, button, div, form, input, li, p, text, ul)
 import Html.Attributes exposing (class, placeholder, type_, value)
 import Html.Events as Events
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Set exposing (Set)
 import Url
-import Url.Parser exposing ((</>), Parser, parse)
 
 
 
@@ -21,6 +20,13 @@ import Url.Parser exposing ((</>), Parser, parse)
 type alias InitValues =
     { name : String
     , users : List String
+    , users_with_msgs : Maybe (List InitUsers)
+    }
+
+
+type alias InitUsers =
+    { friend : String
+    , msgs : List String
     }
 
 
@@ -36,7 +42,7 @@ type alias UserMessageState =
     }
 
 
-type alias MsgMap =
+type alias UsersMsgs =
     Dict String UserMessageState
 
 
@@ -79,17 +85,12 @@ port messageReceiver : (Encode.Value -> msg) -> Sub msg
 -- MODEL
 
 
-routeParser : Parser (String -> a) a
-routeParser =
-    Url.Parser.string
-
-
 type alias Model =
     { name : String
     , username : String
     , friend : String
     , msg : String
-    , msgs : MsgMap
+    , msgs : UsersMsgs
     , key : Nav.Key
     , url : Url.Url
     , usersOnline : Set String
@@ -104,17 +105,32 @@ initialCommand name =
 initialModel : InitValues -> Url.Url -> Nav.Key -> Model
 initialModel initValues url key =
     let
-        list =
+        users =
             List.filter (\name -> name /= initValues.name) initValues.users
+
+        usersMsgsAcc =
+            Dict.fromList (List.map (\name -> ( name, UserMessageState [] True )) users)
+
+        localStorageUsersMsgs =
+            Maybe.withDefault [] initValues.users_with_msgs
+
+        createUserMsgsState msgs =
+            Maybe.map (\_ -> UserMessageState msgs True)
     in
     { name = initValues.name
     , username = ""
-    , friend = Maybe.withDefault "" (List.head list)
+    , friend = Maybe.withDefault "" (List.head users)
     , msg = ""
-    , msgs = Dict.fromList (List.map (\name -> ( name, UserMessageState [] True )) list)
+    , msgs =
+        List.foldl
+            (\localStorage dictAcc ->
+                Dict.update localStorage.friend (createUserMsgsState localStorage.msgs) dictAcc
+            )
+            usersMsgsAcc
+            localStorageUsersMsgs
     , key = key
     , url = url
-    , usersOnline = Set.fromList list
+    , usersOnline = Set.fromList users
     }
 
 
@@ -176,17 +192,14 @@ update msg model =
                             Dict.update
                                 user_message.sender
                                 (Maybe.map
-                                    (\{ msgs, viewed } ->
+                                    (\{ msgs } ->
                                         UserMessageState (msgs ++ [ user_message.sender ++ ": " ++ user_message.msg ])
                                             (user_message.sender == model.friend)
                                     )
                                 )
                                 model.msgs
                     in
-                    Debug.log ("jaaaa klemens dict update " ++ Debug.toString dict)
-                        Debug.log
-                        ("jaaaa klemens dict update " ++ Debug.toString user_message)
-                        ( { model | msgs = dict }, Cmd.none )
+                    ( { model | msgs = dict }, Cmd.none )
 
                 Err message ->
                     Debug.log ("Error receiving msg " ++ Debug.toString message)
@@ -195,7 +208,7 @@ update msg model =
         NewOnlineUser jsonName ->
             case Decode.decodeValue (stringDecoder "name") jsonName of
                 Ok user ->
-                    if user /= model.name then
+                    if user /= model.name && not (Dict.member model.friend model.msgs) then
                         if model.friend == "" then
                             ( { model | usersOnline = Set.insert user model.usersOnline, friend = user, msgs = Dict.insert user (UserMessageState [] True) model.msgs }, Cmd.none )
 
@@ -226,18 +239,13 @@ update msg model =
                     Dict.update
                         name
                         (Maybe.map
-                            (\{ msgs, viewed } ->
+                            (\{ msgs } ->
                                 UserMessageState msgs True
                             )
                         )
                         model.msgs
             in
             ( { model | friend = name, msgs = dict }, Cmd.none )
-
-
-getName : Url.Url -> String
-getName url =
-    Maybe.withDefault "" (parse routeParser url)
 
 
 
@@ -277,13 +285,13 @@ view model =
     }
 
 
-viewMsgs : MsgMap -> String -> Html msg
+viewMsgs : UsersMsgs -> String -> Html msg
 viewMsgs map friend =
     let
         list =
             Maybe.withDefault (UserMessageState [] True) (Dict.get friend map)
     in
-    ul [] (List.map (\m -> li [] [ text m ]) list.msgs)
+    ul [ class "messages_list" ] (List.map (\m -> li [] [ text m ]) list.msgs)
 
 
 viewInput : String -> String -> String -> (String -> msg) -> Html msg
@@ -296,7 +304,7 @@ returnClass user model =
         struct =
             Maybe.withDefault (UserMessageState [] True) (Dict.get user model.msgs)
     in
-    if Debug.log ("reutnr class " ++ user ++ Debug.toString struct) ((user /= model.friend) && not struct.viewed) then
+    if (user /= model.friend) && not struct.viewed then
         "button is-info"
 
     else
