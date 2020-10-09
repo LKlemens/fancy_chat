@@ -1,18 +1,18 @@
-describe("My first test", () => {
-  beforeEach(() => {
+describe("Test basic chat functionalities", () => {
+  before(() => {
     // start or reset phoenix
-    cy.exec(
-      '(cd .. && ( \
-        iex --sname phx -S mix phx.server || \
-        iex --sname reset <<< ":rpc.call(:phx@$(uname -n), :init, :restart, [])" \
-        ) & \
-        ) && \
-        sleep 12 && \
-        npx wait-on -t 20  tcp:4000'
-    );
+    // cy.exec(
+    //   '(cd .. && ( \
+    //     iex --sname phx -S mix phx.server || \
+    //     iex --sname reset <<< ":rpc.call(:phx@$(uname -n), :init, :restart, [])" \
+    //     ) & \
+    //     ) && \
+    //     sleep 1 && \
+    //     npx wait-on -t 12000  tcp:4000'
+    // );
   });
 
-  it("Visit login page", () => {
+  it("Messages correctly send between users renderend by webpage", () => {
     cy.visit("/");
     cy.get("input#credentials_name").type("hello");
     cy.get("input#credentials_password").type("hello");
@@ -37,5 +37,14 @@ describe("My first test", () => {
       expect($lis.eq(2)).to.contain("hello: first msg");
       expect($lis.eq(3)).to.contain("hello: second msg");
     });
+  });
+
+  it("Messages survive page reload", () => {
+    cy.visit("/hello");
+    cy.get("input[type='input']").type("reload msg{enter}");
+    cy.reload();
+    cy.get("ul.messages_list > li")
+      .last()
+      .should("contain", "hello: reload msg");
   });
 });
