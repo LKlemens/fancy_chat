@@ -28,14 +28,15 @@ defmodule FancyChatWeb.PageController do
     [{p, _}] = Registry.lookup(Registry.Users, params["id"])
     IO.inspect({:ile_dzieic, DynamicSupervisor.which_children(FancyChat.Users.Supervisor)})
 
-    names =
+    all_users =
       GenServer.call(FancyChat.AllUsers, :all)
       |> Enum.map(fn {name, _} -> name end)
 
-    IO.inspect({:namerrrrr, names})
+    IO.inspect({:namerrrrr, all_users})
     id = GenServer.call(p, :get_id)
     conn = assign(conn, :id, id)
-    conn = assign(conn, :names, names)
+    conn = assign(conn, :name, params["id"])
+    conn = assign(conn, :all_users, all_users)
     IO.inspect({:show_chec, conn})
     IO.inspect({:show_checpara, params})
     render(conn, "login.html")

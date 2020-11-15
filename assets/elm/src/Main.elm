@@ -23,13 +23,6 @@ type alias Name =
 type alias InitValues =
     { name : Name
     , users : List Name
-    , users_with_msgs : List InitUser
-    }
-
-
-type alias InitUser =
-    { friend : Name
-    , msgs : List Name
     }
 
 
@@ -125,10 +118,10 @@ initialModel initValues url key =
     , users =
         List.foldl
             (\localStorage dictAcc ->
-                Dict.update localStorage.friend (createUserMsgsState localStorage.msgs) dictAcc
+                Dict.update localStorage (createUserMsgsState []) dictAcc
             )
             usersMsgsAcc
-            initValues.users_with_msgs
+            initValues.users
     , key = key
     , url = url
     }

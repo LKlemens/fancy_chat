@@ -27,26 +27,6 @@ socket.connect();
 
 const elmContainer = document.querySelector("#elm-container");
 
-function getItem(name, empty) {
-  let existing = localStorage.getItem(name);
-  let value = existing ? existing : JSON.stringify(empty);
-  return JSON.parse(value);
-}
-
-function updateLocalStorage(msg) {
-  let messages = getItem("messages", []);
-  let user = messages.find((item) => item.friend == msg.receiver);
-  if (user) {
-    user["msgs"].push(msg.sender + ": " + msg.msg);
-  } else {
-    messages.push({
-      friend: msg.receiver,
-      msgs: [msg.sender + ": " + msg.msg],
-    });
-  }
-  localStorage.setItem("messages", JSON.stringify(messages));
-}
-
 function createChannel(name, params = {}) {
   let channel = socket.channel(name, params);
   channel
@@ -61,13 +41,14 @@ function createChannel(name, params = {}) {
 }
 
 if (elmContainer) {
-  let name = window.location.pathname.replace(/^\//, "");
+  const element = document.getElementById("allusers");
+  const { users } = element.dataset;
+  const all_users = JSON.parse(users);
   let app = Elm.Main.init({
     node: elmContainer,
     flags: {
-      name: name,
+      name: username,
       users: all_users,
-      users_with_msgs: getItem("messages", []),
     },
   });
 
@@ -93,7 +74,6 @@ if (elmContainer) {
         msg
       )}' score data from Elm using the sendMessage port.`
     );
-    updateLocalStorage(msg);
     channel.push("send_message", { message: msg });
   });
 
@@ -102,7 +82,6 @@ if (elmContainer) {
       `Receiving ${payload.sender} score data  and name ${payload.msg} from Phoenix using the ReceiveMsg port.`
     );
     payload.receiver = payload.sender;
-    updateLocalStorage(payload);
     app.ports.messageReceiver.send(payload);
   });
 }
