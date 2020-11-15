@@ -16,21 +16,25 @@ import Url
 -- main : Html
 
 
+type alias Name =
+    String
+
+
 type alias InitValues =
-    { name : String
-    , users : List String
+    { name : Name
+    , users : List Name
     , users_with_msgs : List InitUser
     }
 
 
 type alias InitUser =
-    { friend : String
-    , msgs : List String
+    { friend : Name
+    , msgs : List Name
     }
 
 
 type ReceivedMsg
-    = ReceivedMsg { msg : String, sender : String }
+    = ReceivedMsg { msg : String, sender : Name }
 
 
 type UserMessageState
@@ -42,7 +46,7 @@ type UserMessageState
 
 
 type alias UsersMsgs =
-    Dict String UserMessageState
+    Dict Name UserMessageState
 
 
 main : Program InitValues Model Msg
@@ -58,8 +62,8 @@ main =
 
 
 type alias UserMsg =
-    { sender : String
-    , receiver : String
+    { sender : Name
+    , receiver : Name
     , msg : String
     }
 
@@ -85,8 +89,8 @@ port messageReceiver : (Encode.Value -> msg) -> Sub msg
 
 
 type alias Model =
-    { name : String
-    , friend : String
+    { name : Name
+    , friend : Name
     , current_msg : String
     , users : UsersMsgs
     , key : Nav.Key
