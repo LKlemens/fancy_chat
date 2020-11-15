@@ -8,7 +8,6 @@ import Html.Attributes exposing (class, placeholder, type_, value)
 import Html.Events as Events
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Set exposing (Set)
 import Url
 
 
@@ -17,34 +16,37 @@ import Url
 -- main : Html
 
 
+type alias Name =
+    String
+
+
 type alias InitValues =
-    { name : String
-    , users : List String
-    , users_with_msgs : Maybe (List InitUsers)
+    { name : Name
+    , users : List Name
+    , users_with_msgs : List InitUser
     }
 
 
-type alias InitUsers =
-    { friend : String
-    , msgs : List String
+type alias InitUser =
+    { friend : Name
+    , msgs : List Name
     }
 
 
-type alias ReceivedMsg =
-    { msg : String
-    , sender : String
-    }
+type ReceivedMsg
+    = ReceivedMsg { msg : String, sender : Name }
 
 
-type alias UserMessageState =
-    { msgs : List String
-    , viewed : Bool
-    , online : Bool
-    }
+type UserMessageState
+    = UserMessageState
+        { msgs : List String
+        , viewed : Bool
+        , online : Bool
+        }
 
 
 type alias UsersMsgs =
-    Dict String UserMessageState
+    Dict Name UserMessageState
 
 
 main : Program InitValues Model Msg
@@ -60,8 +62,8 @@ main =
 
 
 type alias UserMsg =
-    { sender : String
-    , receiver : String
+    { sender : Name
+    , receiver : Name
     , msg : String
     }
 
@@ -87,8 +89,8 @@ port messageReceiver : (Encode.Value -> msg) -> Sub msg
 
 
 type alias Model =
-    { name : String
-    , friend : String
+    { name : Name
+    , friend : Name
     , current_msg : String
     , users : UsersMsgs
     , key : Nav.Key
@@ -108,13 +110,14 @@ initialModel initValues url key =
             List.filter (\name -> name /= initValues.name) initValues.users
 
         usersMsgsAcc =
-            Dict.fromList (List.map (\name -> ( name, UserMessageState [] True True )) users)
-
-        localStorageUsersMsgs =
-            Maybe.withDefault [] initValues.users_with_msgs
+            Dict.fromList
+                (List.map
+                    (\name -> ( name, UserMessageState { msgs = [], viewed = True, online = True } ))
+                    users
+                )
 
         createUserMsgsState msgs =
-            Maybe.map (\_ -> UserMessageState msgs True True)
+            Maybe.map (\_ -> UserMessageState { msgs = msgs, viewed = True, online = True })
     in
     { name = initValues.name
     , friend = Maybe.withDefault "" (List.head users)
@@ -125,7 +128,7 @@ initialModel initValues url key =
                 Dict.update localStorage.friend (createUserMsgsState localStorage.msgs) dictAcc
             )
             usersMsgsAcc
-            localStorageUsersMsgs
+            initValues.users_with_msgs
     , key = key
     , url = url
     }
@@ -160,7 +163,7 @@ usersDecoder =
 
 
 msgDecoder =
-    Decode.map2 ReceivedMsg
+    Decode.map2 (\msg sender -> ReceivedMsg { msg = msg, sender = sender })
         (Decode.field "msg" Decode.string)
         (Decode.field "sender" Decode.string)
 
@@ -172,24 +175,31 @@ update msg model =
             ( model, Cmd.none )
 
         SendMsg message ->
-            ( { model | current_msg = "", users = Dict.update model.friend (Maybe.map (\{ msgs, viewed } -> UserMessageState (msgs ++ [ model.name ++ ": " ++ message ]) viewed True)) model.users }, sendMessage (UserMsg model.name model.friend message) )
+            ( { model
+                | current_msg = ""
+                , users =
+                    Dict.update model.friend
+                        (Maybe.map
+                            (\(UserMessageState { msgs, viewed }) -> UserMessageState { msgs = msgs ++ [ model.name ++ ": " ++ message ], viewed = viewed, online = True })
+                        )
+                        model.users
+              }
+            , sendMessage (UserMsg model.name model.friend message)
+            )
 
         HandleMsg message ->
             ( { model | current_msg = message }, Cmd.none )
 
         ReceiveMsg jsonMsg ->
             case Decode.decodeValue msgDecoder jsonMsg of
-                Ok user_message ->
+                Ok (ReceivedMsg user_message) ->
                     let
                         dict =
                             Dict.update
                                 user_message.sender
-                                (Maybe.map
-                                    (\{ msgs } ->
-                                        UserMessageState (msgs ++ [ user_message.sender ++ ": " ++ user_message.msg ])
-                                            (user_message.sender == model.friend)
-                                            True
-                                    )
+                                (Maybe.map <|
+                                    \(UserMessageState { msgs, viewed }) ->
+                                        UserMessageState { msgs = msgs ++ [ user_message.sender ++ ": " ++ user_message.msg ], viewed = user_message.sender == model.friend, online = True }
                                 )
                                 model.users
                     in
@@ -204,10 +214,10 @@ update msg model =
                 Ok user ->
                     if user /= model.name && not (Dict.member model.friend model.users) then
                         if model.friend == "" then
-                            ( { model | friend = user, users = Dict.insert user (UserMessageState [] True True) model.users }, Cmd.none )
+                            ( { model | friend = user, users = Dict.insert user (UserMessageState { msgs = [], viewed = True, online = True }) model.users }, Cmd.none )
 
                         else
-                            ( { model | users = Dict.insert user (UserMessageState [] True True) model.users }, Cmd.none )
+                            ( { model | users = Dict.insert user (UserMessageState { msgs = [], viewed = True, online = True }) model.users }, Cmd.none )
 
                     else
                         ( model, Cmd.none )
@@ -233,8 +243,8 @@ update msg model =
                     Dict.update
                         name
                         (Maybe.map
-                            (\{ msgs } ->
-                                UserMessageState msgs True True
+                            (\(UserMessageState { msgs }) ->
+                                UserMessageState { msgs = msgs, viewed = True, online = True }
                             )
                         )
                         model.users
@@ -283,9 +293,12 @@ viewMsgs : UsersMsgs -> String -> Html msg
 viewMsgs map friend =
     let
         list =
-            Maybe.withDefault (UserMessageState [] True True) (Dict.get friend map)
+            Maybe.withDefault (UserMessageState { msgs = [], viewed = True, online = True }) (Dict.get friend map)
+
+        user_messages =
+            (\(UserMessageState { msgs }) -> msgs) list
     in
-    ul [ class "messages_list" ] (List.map (\m -> li [] [ text m ]) list.msgs)
+    ul [ class "messages_list" ] (List.map (\m -> li [] [ text m ]) user_messages)
 
 
 viewInput : String -> String -> String -> (String -> msg) -> Html msg
@@ -296,21 +309,25 @@ viewInput t p v toMsg =
 returnClass user model =
     let
         struct =
-            Maybe.withDefault (UserMessageState [] True True) (Dict.get user model.users)
+            Maybe.withDefault (UserMessageState { msgs = [], viewed = True, online = True }) (Dict.get user model.users)
+
+        viewed_val =
+            (\(UserMessageState { viewed }) -> viewed) struct
     in
-    if (user /= model.friend) && not struct.viewed then
+    if (user /= model.friend) && not viewed_val then
         "button is-info"
 
     else
         "button"
 
 
+viewOnlineUsers : UsersMsgs -> Model -> Html Msg
 viewOnlineUsers users model =
     let
         onlineUsers =
             Dict.foldl
-                (\k v acc ->
-                    if v.online then
+                (\k (UserMessageState { online }) acc ->
+                    if online then
                         k :: acc
 
                     else
