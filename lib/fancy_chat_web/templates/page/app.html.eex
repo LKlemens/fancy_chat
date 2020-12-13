@@ -1,0 +1,6 @@
+<div id="allusers" data-users="<%= Jason.encode!(@all_users) %>" >
+<script>
+  window.userToken = "<%= assigns[:id] %>";
+  window.username = "<%= @name %>";
+</script>
+<div id="elm-container"></div>

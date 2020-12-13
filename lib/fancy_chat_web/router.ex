@@ -17,6 +17,7 @@ defmodule FancyChatWeb.Router do
     pipe_through(:browser)
 
     resources("/", PageController, only: [:index, :create, :show])
+    resources("/register", RegistrationController, only: [:new, :create])
   end
 
   # Other scopes may use custom stacks.

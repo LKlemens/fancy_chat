@@ -1,6 +1,16 @@
-<div id="allusers" data-users="<%= Jason.encode!(@all_users) %>" >
-<script>
-  window.userToken = "<%= assigns[:id] %>";
-  window.username = "<%= @name %>";
-</script>
-<div id="elm-container"></div>
+<%# <div id="elm-container"></div> %>
+<%= form_for @conn, Routes.page_path(@conn, :create), [as: :credentials] ,fn f -> %>
+  <div class="field">
+  <label class="controll has-icon-left">
+    <p class="controll has-icon-left">
+    <%= text_input f, :name, class: "input is-primary  is-rounded is-focused", placeholder: "username" %>
+      <%# <i class="fas fa-check"></i> %>
+    </p>
+  </label>
+  </div>
+  <label>
+    <%= text_input f, :password, class: "input is-primary  is-rounded is-focused", placeholder: "password"  %>
+  </label>
+
+  <%= submit "Submit", class: "button is-danger" %>
+<% end %>

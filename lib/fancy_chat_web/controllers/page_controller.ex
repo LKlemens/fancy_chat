@@ -6,22 +6,23 @@ defmodule FancyChatWeb.PageController do
     render(conn, "index.html")
   end
 
-  def create(conn, %{"credentials" => %{"name" => name}}) do
-    IO.inspect({:kurde, name})
-    DynamicSupervisor.start_child(FancyChat.Users.Supervisor, {FancyChat.User, name})
-    [{p, _}] = Registry.lookup(Registry.Users, name)
-    IO.inspect({:pid, p})
-    IO.inspect({:name, name})
-    id = Base.encode16(:crypto.strong_rand_bytes(8))
-    GenServer.cast(p, %{name: name, id: id})
-    GenServer.cast(FancyChat.AllUsers, {:new, {name, id}})
-    IO.inspect({:ile_dzieic, DynamicSupervisor.which_children(FancyChat.Users.Supervisor)})
-    IO.inspect({:alle_usersssss, GenServer.call(FancyChat.AllUsers, :all)})
-    conn = assign(conn, :name, name)
-    IO.inspect({:check_create, conn})
+  def create(conn, _params) do
+    conn
+    # IO.inspect({:kurde, name})
+    # DynamicSupervisor.start_child(FancyChat.Users.Supervisor, {FancyChat.User, name})
+    # [{p, _}] = Registry.lookup(Registry.Users, name)
+    # IO.inspect({:pid, p})
+    # IO.inspect({:name, name})
+    # id = Base.encode16(:crypto.strong_rand_bytes(8))
+    # GenServer.cast(p, %{name: name, id: id})
+    # GenServer.cast(FancyChat.AllUsers, {:new, {name, id}})
+    # IO.inspect({:ile_dzieic, DynamicSupervisor.which_children(FancyChat.Users.Supervisor)})
+    # IO.inspect({:alle_usersssss, GenServer.call(FancyChat.AllUsers, :all)})
+    # conn = assign(conn, :name, name)
+    # IO.inspect({:check_create, conn})
 
-    # render(conn, "login.html")
-    redirect(conn, to: "/#{name}")
+    # # render(conn, "login.html")
+    # redirect(conn, to: "/#{name}")
   end
 
   def show(conn, params) do
@@ -39,6 +40,6 @@ defmodule FancyChatWeb.PageController do
     conn = assign(conn, :all_users, all_users)
     IO.inspect({:show_chec, conn})
     IO.inspect({:show_checpara, params})
-    render(conn, "login.html")
+    render(conn, "app.html")
   end
 end
