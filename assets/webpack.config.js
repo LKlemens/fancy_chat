@@ -33,6 +33,7 @@ module.exports = (env, options) => {
             loader: "elm-webpack-loader",
             options: {
               cwd: path.resolve(__dirname, "elm"),
+              debug: true,
             },
           },
         },
